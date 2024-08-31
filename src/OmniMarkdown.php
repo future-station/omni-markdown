@@ -14,19 +14,19 @@ class OmniMarkdown
 
     protected string $binPath;
 
-    protected array $options = [];
+    protected array $options;
 
-    protected int $timeout;
+    protected int $timeout = 60;
 
     /**
      * OmniMarkdown constructor.
      *
      * @throws BinaryNotFoundException
      */
-    public function __construct(?string $binPath = null, int $timeout = 60)
-    {
+    public function __construct(
+        ?string $binPath = null,
+    ) {
         $this->binPath = $binPath ?? '/usr/bin/pandoc';
-        $this->timeout = $timeout;
 
         if (! is_executable($this->binPath)) {
             throw BinaryNotFoundException::fromPath($this->binPath);
@@ -51,27 +51,27 @@ class OmniMarkdown
         return (new static($binPath, $timeout))
             ->setOptions($options)
             ->setFile($file)
-            ->convertToMarkdown($callback);
+            ->markdown($callback);
     }
 
     /**
-     * Convert the file to Markdown using the configured binary.
+     * Get the Markdown from the file.
      *
      * @throws CouldNotExtractMarkdown
      */
-    public function convertToMarkdown(?Closure $callback = null): string
+    public function markdown(?Closure $callback = null): string
     {
-        $process = new Process(array_merge([$this->binPath], $this->options, [$this->file, '-']));
+        $command = array_merge([$this->binPath, $this->file, ...$this->options]);
+        $process = new Process($command);
         $process->setTimeout($this->timeout);
 
-        if ($callback) {
-            $callback($process);
-        }
+        // Allow customization of the process instance via callback if provided
+        $process = $callback ? $callback($process) : $process;
 
         $process->run();
 
         if (! $process->isSuccessful()) {
-            throw new CouldNotExtractMarkdown($process);
+            throw new CouldNotExtractMarkdown($process->getErrorOutput());
         }
 
         return trim($process->getOutput());
@@ -120,24 +120,6 @@ class OmniMarkdown
     }
 
     /**
-     * Get the Markdown from the file.
-     *
-     * @throws CouldNotExtractMarkdown
-     */
-    public function markdown(?Closure $callback = null): string
-    {
-        $process = new Process(array_merge([$this->binPath], $this->options, [$this->file, '-']));
-        $process->setTimeout($this->timeout);
-        $process = $callback ? $callback($process) : $process;
-        $process->run();
-        if (! $process->isSuccessful()) {
-            throw new CouldNotExtractMarkdown($process);
-        }
-
-        return trim($process->getOutput());
-    }
-
-    /**
      * Add additional options to the conversion process.
      *
      * @return $this
@@ -157,17 +139,8 @@ class OmniMarkdown
      */
     protected function parseOptions(array $options): array
     {
-        $mapper = function (string $content): array {
-            $content = trim($content);
-            if ('-' !== ($content[0] ?? '')) {
-                $content = '-'.$content;
-            }
-
-            return explode(' ', $content, 2);
-        };
-
-        $reducer = fn (array $carry, array $option): array => array_merge($carry, $option);
-
-        return array_reduce(array_map($mapper, $options), $reducer, []);
+        return array_map(function ($option) {
+            return trim($option);
+        }, $options);
     }
 }
