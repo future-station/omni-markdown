@@ -1,0 +1,26 @@
+{
+    "name": "future-station/omni-markdown",
+    "description": "A Laravel package to convert documents to Custom-flavored Markdown.",
+    "type": "library",
+    "require": {
+        "php": "^8.0",
+        "symfony/process": "^7.0"
+    },
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "FutureStation\\OmniMarkdown\\": "src"
+        }
+    },
+    "authors": [
+        {
+            "name": "akr4m",
+            "email": "akram@futurestation.net"
+        }
+    ],
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "config": {
+        "sort-packages": true
+    }
+}
