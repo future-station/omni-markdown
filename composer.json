@@ -6,10 +6,21 @@
         "php": "^8.0",
         "symfony/process": "^7.0"
     },
+    "require-dev": {
+        "pestphp/pest": "^3.0",
+        "pestphp/pest-plugin-type-coverage": "^3.0",
+        "rector/rector": "^1.2",
+        "symfony/var-dumper": "^6.4"
+    },
     "license": "MIT",
     "autoload": {
         "psr-4": {
             "FutureStation\\OmniMarkdown\\": "src"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\": "tests/"
         }
     },
     "authors": [
@@ -21,6 +32,21 @@
     "minimum-stability": "dev",
     "prefer-stable": true,
     "config": {
-        "sort-packages": true
+        "optimize-autoloader": true,
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    },
+    "scripts": {
+        "refactor": "rector --debug",
+        "test:refactor": "rector --dry-run",
+        "test:type-coverage": "pest --type-coverage --min=100",
+        "test:unit": "pest --colors=always",
+        "test": [
+            "@test:refactor",
+            "@test:type-coverage",
+            "@test:unit"
+        ]
     }
 }

@@ -14,7 +14,7 @@ class Markdown
 
     protected string $binPath;
 
-    protected array $options;
+    protected array $options = [];
 
     protected int $timeout = 60;
 
@@ -25,12 +25,38 @@ class Markdown
      */
     public function __construct(
         ?string $binPath = null,
+        ?array $options = ['-t', 'gfm', '--wrap=none']
     ) {
-        $this->binPath = $binPath ?? '/usr/bin/pandoc';
+        $this->binPath = $binPath ?? $this->findPandoc();
+        $this->options = $this->parseOptions($options);
 
         if (! is_executable($this->binPath)) {
             throw BinaryNotFoundException::fromPath($this->binPath);
         }
+    }
+
+    /**
+     * Attempt to find the pandoc binary in common locations.
+     *
+     * @throws BinaryNotFoundException
+     */
+    protected function findPandoc(): string
+    {
+        $commonPaths = [
+            '/usr/local/bin/pandoc',    // Common on Linux
+            '/opt/homebrew/bin/pandoc', // Homebrew on macOS (Apple Silicon)
+            '/usr/bin/pandoc',          // Common on Linux
+            '/opt/local/bin/pandoc',    // MacPorts on macOS
+            '/usr/local/bin/pandoc',    // Homebrew on macOS (Intel)
+        ];
+
+        foreach ($commonPaths as $path) {
+            if (is_executable($path)) {
+                return $path;
+            }
+        }
+
+        throw BinaryNotFoundException::fromPath($this->binPath);
     }
 
     /**
@@ -43,14 +69,27 @@ class Markdown
      */
     public static function getMarkdown(
         string $file,
+        ?string $format = 'gfm',
+        bool $nowrap = true,
         ?string $binPath = null,
-        array $options = [],
         int $timeout = 60,
         ?Closure $callback = null
     ): string {
+        $validFormats = ['gfm', 'markdown'];
+        if (! in_array($format, $validFormats)) {
+            throw new \InvalidArgumentException("Invalid format specified. Use 'gfm' or 'markdown'.");
+        }
+
+        $options = ['-t', $format];
+
+        if ($nowrap) {
+            $options[] = '--wrap=none';
+        }
+
         return (new static($binPath))
             ->setOptions($options)
             ->setFile($file)
+            ->setTimeout($timeout)
             ->markdown($callback);
     }
 
@@ -61,17 +100,18 @@ class Markdown
      */
     public function markdown(?Closure $callback = null): string
     {
-        $command = array_merge([$this->binPath, $this->file, ...$this->options]);
+        $command = [$this->binPath, $this->file, ...$this->options];
+
         $process = new Process($command);
         $process->setTimeout($this->timeout);
 
         // Allow customization of the process instance via callback if provided
-        $process = $callback ? $callback($process) : $process;
+        $process = $callback instanceof Closure ? $callback($process) : $process;
 
         $process->run();
 
         if (! $process->isSuccessful()) {
-            throw new CouldNotExtractMarkdown($process->getErrorOutput());
+            throw new CouldNotExtractMarkdown($process);
         }
 
         return trim($process->getOutput());
@@ -139,8 +179,6 @@ class Markdown
      */
     protected function parseOptions(array $options): array
     {
-        return array_map(function ($option) {
-            return trim($option);
-        }, $options);
+        return array_map(fn ($option): string => trim($option), $options);
     }
 }
