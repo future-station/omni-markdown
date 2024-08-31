@@ -8,7 +8,7 @@ use FutureStation\OmniMarkdown\Exceptions\CouldNotExtractMarkdown;
 use FutureStation\OmniMarkdown\Exceptions\FileNotFound;
 use Symfony\Component\Process\Process;
 
-class OmniMarkdown
+class Markdown
 {
     protected string $file;
 
@@ -19,7 +19,7 @@ class OmniMarkdown
     protected int $timeout = 60;
 
     /**
-     * OmniMarkdown constructor.
+     * Markdown constructor.
      *
      * @throws BinaryNotFoundException
      */
@@ -48,7 +48,7 @@ class OmniMarkdown
         int $timeout = 60,
         ?Closure $callback = null
     ): string {
-        return (new static($binPath, $timeout))
+        return (new static($binPath))
             ->setOptions($options)
             ->setFile($file)
             ->markdown($callback);
