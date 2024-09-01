@@ -10,6 +10,8 @@ use Symfony\Component\Process\Process;
 
 class Markdown
 {
+    public ?string $text = null;
+
     protected string $file;
 
     protected string $binPath;
@@ -104,6 +106,68 @@ class Markdown
 
         $process = new Process($command);
         $process->setTimeout($this->timeout);
+
+        // Allow customization of the process instance via callback if provided
+        $process = $callback instanceof Closure ? $callback($process) : $process;
+
+        $process->run();
+
+        if (! $process->isSuccessful()) {
+            throw new CouldNotExtractMarkdown($process);
+        }
+
+        return trim($process->getOutput());
+    }
+
+    public static function getStringToMarkdown(
+        string $text,
+        ?string $format = 'gfm',
+        bool $nowrap = true,
+        ?string $binPath = null,
+        int $timeout = 60,
+        ?Closure $callback = null
+    ): string {
+        $validFormats = ['gfm', 'markdown'];
+        if (! in_array($format, $validFormats)) {
+            throw new \InvalidArgumentException("Invalid format specified. Use 'gfm' or 'markdown'.");
+        }
+
+        $options = ['-t', $format];
+
+        if ($nowrap) {
+            $options[] = '--wrap=none';
+        }
+
+        return (new static($binPath))
+            ->setOptions($options)
+            ->setText($text)
+            ->setTimeout($timeout)
+            ->markdownFromString($callback);
+    }
+
+    /**
+     * Set the text to be converted.
+     */
+    protected function setText(string $text): self
+    {
+        $this->text = $text;
+
+        return $this;
+    }
+
+    /**
+     * Get the Markdown from the string.
+     *
+     * @throws CouldNotExtractMarkdown
+     */
+    public function markdownFromString(?Closure $callback = null): string
+    {
+        $command = [$this->binPath, ...$this->options];
+
+        // Use a process that writes the input text to stdin
+        $process = new Process($command);
+        $process->setTimeout($this->timeout);
+        $process->setInput($this->text);
 
         // Allow customization of the process instance via callback if provided
         $process = $callback instanceof Closure ? $callback($process) : $process;
